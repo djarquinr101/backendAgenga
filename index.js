@@ -1,10 +1,12 @@
 const express = require('express')
 const morgan = require('morgan')
 const cors = require('cors')
+const path = require('path')
 
 const app = express()
 
 app.use(express.json())
+app.use(express.static(path.join(__dirname, 'dist')))
 
 morgan.token('body', (request) => JSON.stringify(request.body))
 
