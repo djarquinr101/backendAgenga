@@ -1,12 +1,15 @@
+require('dotenv').config()
 const express = require('express')
 const morgan = require('morgan')
 const cors = require('cors')
-const path = require('path')
+const Note = require('./models/mongo')
+const { default: mongoose } = require('mongoose')
 
 const app = express()
 
-app.use(express.json())
 app.use(express.static('dist'))
+app.use(express.json())
+
 
 morgan.token('body', (request) => JSON.stringify(request.body))
 
@@ -40,21 +43,42 @@ let agenda = [
 
 //Fetch all the info
 app.get('/api/persons', (request, response) => {
-    response.json(agenda)
+    Note.find({})
+    .then(contact => {
+      response.json(contact)
+    })
 })
 
 //Fecth only one person
 app.get('/api/persons/:id', (request, response) => {
-    const id = request.params.id
-    const person = agenda.find((contact) => contact.id === id)
-    person ? response.json(person) : response.status(404).end()
+  const id = request.params.id
+  if (id.length != 24) return response.status(404).send({error: "the ID lenght is wrong"})
+
+    Note.findById(request.params.id)
+    .then(note => {
+      if (note) {
+        response.json(note)
+      } else {
+        response.status(404).end()
+      }
+    }).catch(error =>{
+      console.log(error)
+      response.status(404).end()
+    })
 })
 
 //delete only one person
 app.delete('/api/persons/:id', (request, response) => {
     const id = request.params.id
-    agenda = agenda.filter((contact) => contact.id !== id)
-    response.status(204).end()
+    if (id.length != 24) return response.status(404).send({error: "the ID lenght is wrong"})
+    Note.findByIdAndRemove(id)
+    .then(result => {
+      response.status(204).end()
+    })
+    .catch(error => {
+      console.log(error)
+      response.status(500).send({error: 'the request could not be processed'})
+    })
 })
 
 //adding one person
@@ -77,19 +101,24 @@ app.post('/api/persons', (request, response) => {
     }
 
     //checks that the phone number or name is not already stored
+    /*
     if(agenda.some((contact) => contact.name === body.name || contact.phone === body.phone)){
       return response.status(400).send({error: "the contact or phone number is already in used please update the existing contact"})
     }
+    */
+    const contact = new Note(
+      {
+          name: body.name,
+          phone: body.phone,
+      }
+    ) 
 
-    let contact = {
-        name: body.name,
-        phone: body.phone,
-        id: body.id,
-    }
+    contact.save()
+    .then(result =>{
+      console.log('New Contact has been saved')
+      response.json(result)
+    })
 
-    agenda = agenda.concat(contact)
-
-    response.json(contact)
 })
 
 
